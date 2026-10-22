@@ -48,6 +48,101 @@ MIGRATIONS: list[tuple[int, str]] = [
         CREATE INDEX IF NOT EXISTS idx_events_date ON events(event_date);
         """,
     ),
+    (
+        2,
+        """
+        -- Taxonomía de géneros (editable). data = JSON de core.models.Genre
+        CREATE TABLE IF NOT EXISTS genres (
+            slug       TEXT PRIMARY KEY,
+            position   INTEGER NOT NULL DEFAULT 0,
+            data       TEXT NOT NULL
+        );
+
+        -- Plantillas de evento. profile_json = core.models.EventProfile
+        CREATE TABLE IF NOT EXISTS templates (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            name         TEXT NOT NULL,
+            builtin      INTEGER NOT NULL DEFAULT 0,
+            profile_json TEXT NOT NULL,
+            updated_at   TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+
+        -- Sets generados (uno o más por evento). items_json = lista de SetItem.to_dict()
+        CREATE TABLE IF NOT EXISTS sets (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id     INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+            items_json   TEXT NOT NULL,
+            summary_json TEXT,
+            discarded_json TEXT,
+            created_at   TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+            updated_at   TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_sets_event ON sets(event_id);
+
+        -- Clasificación por IA, cacheada por tema (track_key). data = Classification
+        CREATE TABLE IF NOT EXISTS ai_classification (
+            track_key  TEXT PRIMARY KEY,
+            model      TEXT,
+            data       TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+
+        -- Biblioteca local (VirtualDJ + carpetas escaneadas)
+        CREATE TABLE IF NOT EXISTS library_tracks (
+            path        TEXT PRIMARY KEY,
+            source      TEXT NOT NULL,          -- 'vdj' | 'scan'
+            artist      TEXT,
+            title       TEXT,
+            genre       TEXT,
+            comment     TEXT,
+            bpm         REAL,
+            musical_key TEXT,
+            duration    REAL,
+            format      TEXT,
+            bitrate     INTEGER,
+            size        INTEGER,
+            mtime       REAL,
+            norm_artist TEXT,
+            norm_title  TEXT,
+            title_remix TEXT,                   -- título normalizado conservando "remix"
+            is_karaoke  INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_lib_title ON library_tracks(norm_title);
+        CREATE INDEX IF NOT EXISTS idx_lib_artist ON library_tracks(norm_artist);
+
+        -- Correcciones manuales de coincidencia (track_key -> ruta, o '' = "me falta")
+        CREATE TABLE IF NOT EXISTS match_overrides (
+            track_key TEXT PRIMARY KEY,
+            path      TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+
+        -- Aprendizaje: lo que marcas por tipo de evento
+        -- kind: like | dislike | ban_artist | ban_track
+        CREATE TABLE IF NOT EXISTS feedback (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type  TEXT NOT NULL,
+            kind        TEXT NOT NULL,
+            track_key   TEXT,
+            artist      TEXT,
+            label       TEXT,
+            created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_feedback_type ON feedback(event_type);
+
+        -- Playlists curadas que agregas como fuente
+        CREATE TABLE IF NOT EXISTS curated_playlists (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            platform    TEXT NOT NULL,          -- deezer | youtube | spotify
+            url         TEXT NOT NULL,
+            playlist_id TEXT NOT NULL,
+            name        TEXT,
+            genres      TEXT,                   -- JSON lista de slugs
+            event_types TEXT,                   -- JSON lista (vacía = todos)
+            enabled     INTEGER NOT NULL DEFAULT 1
+        );
+        """,
+    ),
 ]
 
 SCHEMA_VERSION = MIGRATIONS[-1][0]
