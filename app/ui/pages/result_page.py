@@ -365,7 +365,12 @@ class ResultPage(QWidget):
             return
         self.summary["pool"] = [it.to_dict() for it in self.pool[:300]]
         self.summary["warnings"] = self.warnings
-        self.set_id = store.save_set(self.ctx.db, self.event_id, self.items, self.summary, self.discarded, self.set_id)
+        try:
+            self.set_id = store.save_set(self.ctx.db, self.event_id, self.items, self.summary, self.discarded,
+                                         self.set_id)
+        except ValueError:   # el evento se eliminó mientras estaba abierto: se vuelve a crear
+            self.event_id = store.save_event(self.ctx.db, self.profile)
+            self.set_id = store.save_set(self.ctx.db, self.event_id, self.items, self.summary, self.discarded)
         self.changed.emit()
 
     def _generator(self) -> SetGenerator:
@@ -499,6 +504,8 @@ class ResultPage(QWidget):
                                               "Audio (*.mp3 *.wav *.flac *.m4a *.aiff *.aif *.ogg *.wma);;Todos (*)")
         if not path:
             return
+        import os
+        path = os.path.normpath(path)
         from ...library.matcher import LibraryMatcher
         LibraryMatcher(self.ctx.db).set_override(self.items[i].track.key, path)
         self._match_one(self.items[i]) if self.ctx.db.scalar("SELECT COUNT(*) FROM library_tracks") else None

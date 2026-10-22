@@ -72,10 +72,14 @@ class TagClassifier:
             era = ("reggaeton_old" if t.year <= 2012 else
                    "reggaeton_2013_2019" if t.year <= 2019 else
                    "reggaeton_actual" if t.year >= 2022 else None)
-            if era:
+            if era and era in self.genres:
                 total = sum(votes.pop(s, 0) for s in list(votes) if s in REGGAETON_FAMILY)
                 votes[era] = total
 
+        votes = {k: v for k, v in votes.items() if k in self.genres}
+        if not votes:
+            return Classification(genres=["otro"], year=t.year, energy=5, explicit=bool(t.explicit),
+                                  min_age=18 if t.explicit else 0, confidence=0.2, method="tags")
         ranked = sorted(votes.items(), key=lambda kv: kv[1], reverse=True)
         top = ranked[0][1]
         genres = [s for s, v in ranked if v >= top * 0.5][:3]

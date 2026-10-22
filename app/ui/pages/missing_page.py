@@ -224,6 +224,9 @@ class MissingPage(Page):
         except OSError as exc:
             QMessageBox.warning(self, "Exportar", f"No se pudo guardar el archivo:\n{exc}")
             return None
+        except Exception as exc:  # noqa: BLE001 — cualquier otro problema, mensaje simple
+            QMessageBox.warning(self, "Exportar", f"No se pudo exportar:\n{exc}")
+            return None
         self.status_msg(f"Guardado: {path.name}")
         self._show_saved(path)
         return path

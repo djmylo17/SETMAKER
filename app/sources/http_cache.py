@@ -67,6 +67,8 @@ class CachedHTTP:
                 time.sleep(5)
                 return self.get(source, url, params, ttl_hours, headers)
             raise SourceError(f"{source}: {data['error'].get('message', 'error')}")
+        if isinstance(data, dict) and "error" in data and not isinstance(data.get("error"), dict):
+            return data   # error de Last.fm (ej. clave mala): no se guarda en caché
         self.db.cache_put(source, key, data)
         return data
 

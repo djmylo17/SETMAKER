@@ -70,7 +70,7 @@ class NewSetPage(Page):
         self.summary_card.body.addWidget(self.summary)
         self.summary_card.body.addWidget(muted(
             "Al generar, SETMAKER busca temas reales en Deezer, Apple Music, Last.fm y YouTube, los clasifica "
-            "con IA y aplica tus filtros. Toma entre 1 y 5 minutos la primera vez; después usa la caché."))
+            "con IA y aplica tus filtros. La primera vez toma entre 2 y 6 minutos; después usa la caché y es mucho más rápido. Sin clave de Gemini el set sale bastante más corto."))
         self.stack.addWidget(self.summary_card)
         self.add(self.stack)
 
@@ -101,9 +101,26 @@ class NewSetPage(Page):
         if i >= 0:
             self.tpl.setCurrentIndex(i)
 
+    def _rebuild_if_genres_changed(self):
+        """Si editaste la taxonomía, rehace los pasos para que aparezcan los géneros nuevos."""
+        genres = store.load_genres(self.ctx.db)
+        if [(g.slug, g.name) for g in genres] == [(g.slug, g.name) for g in self.genres]:
+            return
+        self.genres = genres
+        self.names = {g.slug: g.name for g in genres}
+        while self.stack.count() > 1:   # deja solo el resumen (último)
+            w = self.stack.widget(0)
+            self.stack.removeWidget(w)
+            w.deleteLater()
+        self.editor = ProfileEditor(genres)
+        for i, s in enumerate(self.editor.steps):
+            c = Card()
+            c.body.addWidget(s)
+            self.stack.insertWidget(i, c)
+
     def reset(self, profile: EventProfile | None = None, event_id: int | None = None):
         """Deja el asistente listo (vacío, desde una plantilla, o editando un evento existente)."""
-        self.genres = store.load_genres(self.ctx.db)
+        self._rebuild_if_genres_changed()
         self.refresh_templates()
         self.event_id = event_id
         if profile is None:
@@ -169,4 +186,8 @@ class NewSetPage(Page):
             self.status_msg(f"Plantilla guardada: {name.strip()}")
 
     def on_show(self):
+        before = self.editor
+        self._rebuild_if_genres_changed()
+        if self.editor is not before:
+            self.reset(None, None)
         self.refresh_templates()

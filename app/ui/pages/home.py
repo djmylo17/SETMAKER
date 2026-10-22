@@ -162,6 +162,9 @@ class HomePage(Page):
         self.st_ver.set(__version__, "Lista para usar")
 
         todo = []
+        if not self.ctx.vault.get("gemini_api_key"):
+            todo.append("<b>Agregar la clave de Gemini</b> (gratis, 2 minutos): es la que clasifica los temas. "
+                        "Sin ella los sets salen muy cortos.")
         if n < total:
             todo.append(f"Agregar las claves de API que faltan ({total - n}).")
         if not vdj:

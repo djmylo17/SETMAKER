@@ -74,7 +74,7 @@ class StepBasics(QWidget):
             self.date.setDate(d if d.isValid() else QDate.currentDate())
             self.no_date.setChecked(False)
         else:
-            self.no_date.setChecked(False)
+            self.no_date.setChecked(True)
         i = self.etype.findData(p.event_type)
         self.etype.setCurrentIndex(max(i, 0))
         self.venue.setText(p.venue)

@@ -32,7 +32,7 @@ def track_from_deezer(d: dict, source: str, detail: dict | None = None) -> Track
 
 def apply_detail(t: Track, detail: dict) -> None:
     rd = detail.get("release_date") or ""
-    if rd and rd[:4].isdigit():
+    if rd and rd[:4].isdigit() and int(rd[:4]) > 0:
         t.release_date = rd
         t.year = int(rd[:4])
     if detail.get("bpm"):

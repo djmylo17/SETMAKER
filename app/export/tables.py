@@ -110,6 +110,14 @@ def _prepare(path) -> Path:
 
 
 # ---------------------------------------------------------------- Excel
+def _xl_clean(v):
+    """Quita caracteres de control que Excel no acepta (vienen a veces en títulos)."""
+    if isinstance(v, str):
+        from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
+        return ILLEGAL_CHARACTERS_RE.sub("", v)
+    return v
+
+
 def export_xlsx(items: list[SetItem], profile: EventProfile | None, path, only_missing: bool = False,
                 genre_names: dict | None = None) -> Path:
     """Planilla Excel lista para imprimir: encabezado oscuro, filas en negro sobre blanco."""
@@ -134,7 +142,7 @@ def export_xlsx(items: list[SetItem], profile: EventProfile | None, path, only_m
     body_font = Font(color="000000")
     link_col = COLUMNS.index("Link") + 1
     for row in build_rows(items, profile, only_missing, genre_names):
-        ws.append(row)
+        ws.append([_xl_clean(v) for v in row])
         r = ws.max_row
         for c in range(1, len(COLUMNS) + 1):
             ws.cell(r, c).font = body_font

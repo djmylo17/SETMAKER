@@ -265,3 +265,54 @@ def test_gemini_sin_cuota_no_rompe(data_dir):
     assert res == {}
     assert clf.errors
     db.close()
+
+
+# ---------------------------------------------------------------- correcciones de la revisión
+def test_gemini_detecta_cuota_diaria_aunque_el_mensaje_sea_largo(data_dir):
+    from app.db.database import Database
+    db = Database(data_dir / "setmaker.db")
+    body = {"error": {"code": 429, "message": "x" * 900,
+                      "details": [{"violations": [{"quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier"}]}]}}
+    clf = GeminiClassifier(db, "k", "m", DEFAULT_GENRES, post=lambda b: (429, body))
+    import time
+    t0 = time.monotonic()
+    assert clf.classify([Track(key="a|b", title="b", artist="a")]) == {}
+    assert time.monotonic() - t0 < 2, "no debe esperar minutos si la cuota diaria se acabó"
+    db.close()
+
+
+def test_gemini_cancelar_corta_la_espera(data_dir):
+    from app.db.database import Database
+    import time
+    db = Database(data_dir / "setmaker.db")
+    clf = GeminiClassifier(db, "k", "m", DEFAULT_GENRES,
+                           post=lambda b: (429, {"error": {"message": "per minute", "details": [{"retryDelay": "50s"}]}}))
+    t0 = time.monotonic()
+    flag = {"n": 0}
+
+    def cancel():
+        flag["n"] += 1
+        return flag["n"] > 2
+    clf.classify([Track(key="a|b", title="b", artist="a")], cancel=cancel)
+    assert time.monotonic() - t0 < 5
+    db.close()
+
+
+def test_regenerar_evento_borrado_no_rompe(data_dir):
+    from app.core import store
+    from app.db.database import Database
+    db = Database(data_dir / "setmaker.db")
+    p = copy.deepcopy(DEFAULT_TEMPLATES["Despedida"])
+    eid = store.save_event(db, p)
+    store.delete_event(db, eid)
+    eid2 = store.save_event(db, p, eid)          # se recrea
+    assert store.save_set(db, eid2, [], {})       # y el set se guarda
+    db.close()
+
+
+def test_fallback_con_genero_borrado_no_rompe():
+    from app.ai.fallback import TagClassifier
+    genres = [g for g in DEFAULT_GENRES if g.slug != "reggaeton_old"]
+    c = TagClassifier(genres).classify(Track(key="daddy yankee|gasolina", title="Gasolina", artist="Daddy Yankee",
+                                             year=2004), ["reggaeton"])
+    assert c.primary in {g.slug for g in genres}

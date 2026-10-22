@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 
 JUNK_RE = re.compile(r"\b(karaoke|instrumental|slowed|sped up|speed up|8d|reverb|nightcore|cover|tribute|"
                      r"en vivo|live at|acapella|a capella)\b", re.I)
-MAX_CLASSIFY = 700
+MAX_CLASSIFY = 450
 MIN_CONFIDENCE = 0.35
 
 # peso de cada fuente en la señal de tendencia

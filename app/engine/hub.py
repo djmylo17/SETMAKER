@@ -37,6 +37,16 @@ class SourceHub:
         self.youtube = YouTube(self.http, youtube_key) if youtube_key else None
         self.warnings: list[str] = []
         self._failed: set[str] = set()
+        self._fail_count: dict[str, int] = {}
+
+    def _conn_fail(self, label: str, exc: Exception) -> None:
+        """Cuenta fallas de conexión; recién a la 3ª se deja de usar la fuente."""
+        if "internet" in str(exc) or "tardó" in str(exc):
+            n = self._fail_count.get(label, 0) + 1
+            self._fail_count[label] = n
+            if n >= 3 and label not in self._failed:
+                self._failed.add(label)
+                self.warnings.append(f"{label} no respondió varias veces; se siguió con las demás fuentes.")
 
     def _safe(self, label: str, fn, *a, **k) -> list:
         if label in self._failed:
@@ -44,11 +54,8 @@ class SourceHub:
         try:
             return fn(*a, **k) or []
         except SourceError as exc:
-            msg = f"{label}: {exc}"
-            log.info(msg)
-            if "internet" in str(exc) or "tardó" in str(exc):
-                self._failed.add(label)
-                self.warnings.append(f"{label} no respondió; se siguió con las demás fuentes.")
+            log.info("%s: %s", label, exc)
+            self._conn_fail(label, exc)
             return []
         except Exception as exc:  # noqa: BLE001
             log.exception("Error en %s", label)
@@ -91,7 +98,8 @@ class SourceHub:
     def trend_tracks(self, profile: EventProfile, progress: Progress) -> list[Track]:
         out: list[Track] = []
         countries = list(dict.fromkeys([profile.country] + profile.countries))[:4]
-        for c in countries:
+        apple_countries = [x for x in dict.fromkeys([profile.country] + profile.countries) if x != "PR"][:4]
+        for c in apple_countries:   # Apple no tiene tienda de Puerto Rico
             progress(f"Apple Music: lo más escuchado en {COUNTRY_NAMES.get(c, c)}")
             out += self._safe("Apple Music", self.apple.most_played, c, 100)
         progress("Deezer: chart")
@@ -190,9 +198,7 @@ class SourceHub:
         try:
             return fn(*a)
         except SourceError as exc:
-            if "internet" in str(exc):
-                self._failed.add("Deezer")
-                self.warnings.append("Deezer no respondió; se siguió con las demás fuentes.")
+            self._conn_fail("Deezer", exc)
             return None
         except Exception:  # noqa: BLE001
             return None

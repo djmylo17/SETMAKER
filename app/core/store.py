@@ -116,10 +116,12 @@ class EventRow:
 
 def save_event(db: Database, profile: EventProfile, event_id: int | None = None) -> int:
     if event_id:
-        db.execute("UPDATE events SET name=?, event_type=?, event_date=?, venue=?, profile_json=?, "
-                   "updated_at=datetime('now','localtime') WHERE id=?",
-                   (profile.name, profile.event_type, profile.event_date, profile.venue, profile.to_json(), event_id))
-        return event_id
+        cur = db.execute("UPDATE events SET name=?, event_type=?, event_date=?, venue=?, profile_json=?, "
+                         "updated_at=datetime('now','localtime') WHERE id=?",
+                         (profile.name, profile.event_type, profile.event_date, profile.venue, profile.to_json(),
+                          event_id))
+        if cur.rowcount:
+            return event_id
     cur = db.execute("INSERT INTO events(name, event_type, event_date, venue, profile_json) VALUES(?,?,?,?,?)",
                      (profile.name, profile.event_type, profile.event_date, profile.venue, profile.to_json()))
     return int(cur.lastrowid)
@@ -157,10 +159,13 @@ def save_set(db: Database, event_id: int, items: list[SetItem], summary: dict | 
     items_json = json.dumps([i.to_dict() for i in items], ensure_ascii=False)
     s_json = json.dumps(summary or {}, ensure_ascii=False)
     d_json = json.dumps(discarded or [], ensure_ascii=False)
+    if not db.scalar("SELECT 1 FROM events WHERE id = ?", (event_id,)):
+        raise ValueError("El evento ya no existe")
     if set_id:
-        db.execute("UPDATE sets SET items_json=?, summary_json=?, discarded_json=?, "
-                   "updated_at=datetime('now','localtime') WHERE id=?", (items_json, s_json, d_json, set_id))
-        return set_id
+        cur = db.execute("UPDATE sets SET items_json=?, summary_json=?, discarded_json=?, "
+                         "updated_at=datetime('now','localtime') WHERE id=?", (items_json, s_json, d_json, set_id))
+        if cur.rowcount:
+            return set_id
     cur = db.execute("INSERT INTO sets(event_id, items_json, summary_json, discarded_json) VALUES(?,?,?,?)",
                      (event_id, items_json, s_json, d_json))
     return int(cur.lastrowid)

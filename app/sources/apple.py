@@ -19,7 +19,7 @@ class AppleMusic:
             artist, title = r.get("artistName", ""), r.get("name", "")
             rd = r.get("releaseDate", "") or ""
             t = Track(key=track_key(artist, title), title=title, artist=artist,
-                      release_date=rd, year=int(rd[:4]) if rd[:4].isdigit() else 0, link=r.get("url", ""))
+                      release_date=rd, year=int(rd[:4]) if rd[:4].isdigit() and int(rd[:4]) > 0 else 0, link=r.get("url", ""))
             t.sources[f"apple_{country.upper()}"] = {"pos": i + 1}
             t.source_genres = [g.get("name", "") for g in r.get("genres", []) if g.get("name") not in ("Música", "Music")]
             out.append(t)

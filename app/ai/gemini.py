@@ -24,7 +24,7 @@ from ..db.database import Database
 log = logging.getLogger(__name__)
 
 API = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-BATCH = 40
+BATCH = 80
 
 PROMPT = """Eres un DJ profesional de Chile experto en música latina, urbana y de fiestas.
 Clasifica cada tema de la lista usando SOLO estos géneros (usa el código entre corchetes):
@@ -126,7 +126,7 @@ class GeminiClassifier:
                 break
             batch = pending[i:i + BATCH]
             try:
-                got = self._classify_batch(batch, hints)
+                got = self._classify_batch(batch, hints, cancel)
             except QuotaExhausted as exc:
                 self.errors.append(str(exc))
                 log.warning("Gemini sin cuota: %s", exc)
@@ -146,7 +146,7 @@ class GeminiClassifier:
     def _genre_lines(self) -> str:
         return "\n".join(f"[{g.slug}] {g.name}: {g.description}" for g in self.genres)
 
-    def _classify_batch(self, batch: list[Track], hints: dict[str, list[str]]) -> dict[str, Classification]:
+    def _classify_batch(self, batch: list[Track], hints: dict[str, list[str]], cancel=None) -> dict[str, Classification]:
         lines = []
         for idx, t in enumerate(batch):
             extra = []
@@ -157,7 +157,7 @@ class GeminiClassifier:
                 extra.append("tags: " + ", ".join(dict.fromkeys(tags))[:120])
             lines.append(f"{idx} | {t.artist} - {t.title}" + (f" ({'; '.join(extra)})" if extra else ""))
         prompt = PROMPT.format(genres=self._genre_lines(), tracks="\n".join(lines))
-        data = self._call(prompt)
+        data = self._call(prompt, cancel)
         items = data.get("items", []) if isinstance(data, dict) else data
         out: dict[str, Classification] = {}
         for it in items or []:
@@ -180,19 +180,33 @@ class GeminiClassifier:
             )
         return out
 
-    def _call(self, prompt: str) -> dict:
+    @staticmethod
+    def _sleep(seconds: float, cancel) -> None:
+        """Espera en pasos cortos para que «Cancelar» responda al tiro."""
+        end = time.monotonic() + seconds
+        while time.monotonic() < end:
+            if cancel and cancel():
+                raise QuotaExhausted("cancelado")
+            time.sleep(0.5)
+
+    def _call(self, prompt: str, cancel=None) -> dict:
         body = {
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0.1, "responseMimeType": "application/json"},
         }
         if self.used_schema:
             body["generationConfig"]["responseSchema"] = _schema(self.slugs)
+        if "2.5" in self.model:   # menos "pensamiento" = más rápido y menos timeouts
+            body["generationConfig"]["thinkingConfig"] = {"thinkingBudget": 0}
         for attempt in range(5):
             status, payload = self._send(body)
             if status == 200:
                 return self._parse(payload)
-            text = json.dumps(payload)[:500] if not isinstance(payload, str) else payload[:500]
-            if status == 400 and self.used_schema and "schema" in text.lower():
+            text = payload if isinstance(payload, str) else json.dumps(payload)
+            if cancel and cancel():
+                raise QuotaExhausted("cancelado")
+            if status == 400 and self.used_schema and ("schema" in text.lower() or "thinking" in text.lower()):
+                body["generationConfig"].pop("thinkingConfig", None)
                 # el modelo no acepta el esquema: seguir solo con JSON + instrucciones
                 self.used_schema = False
                 body["generationConfig"].pop("responseSchema", None)
@@ -204,10 +218,10 @@ class GeminiClassifier:
                 m = re.search(r'"retryDelay":\s*"(\d+)s"', text)
                 if m:
                     wait = int(m.group(1)) + 1
-                time.sleep(min(wait, 65))
+                self._sleep(min(wait, 65), cancel)
                 continue
             if status in (500, 502, 503, 504):
-                time.sleep(3 * (attempt + 1))
+                self._sleep(3 * (attempt + 1), cancel)
                 continue
             if status in (401, 403):
                 raise QuotaExhausted("Gemini rechazó la clave. Revísala en Fuentes y claves.")
