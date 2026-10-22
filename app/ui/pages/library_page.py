@@ -77,6 +77,11 @@ class LibraryPage(Page):
         b.clicked.connect(self._search)
         row.addWidget(self.ed_search, 1)
         row.addWidget(b)
+        from PySide6.QtWidgets import QCheckBox
+        self.chk_karaoke = QCheckBox("Incluir karaokes")
+        self.chk_karaoke.setToolTip("Por defecto los karaokes no aparecen, para que la búsqueda salga limpia.")
+        self.chk_karaoke.toggled.connect(lambda _on: self._search() if self.ed_search.text().strip() else None)
+        row.addWidget(self.chk_karaoke)
         se.body.addLayout(row)
         self.lbl_results = muted("Escribe algo y pulsa Buscar. Se muestran hasta 200 resultados.")
         se.body.addWidget(self.lbl_results)
@@ -227,7 +232,8 @@ class LibraryPage(Page):
         from ...library.matcher import LibraryMatcher
         if self._matcher is None:
             self._matcher = LibraryMatcher(self.ctx.db, ignore_karaoke=False)
-        results = self._matcher.search(self.ed_search.text(), limit=200)
+        results = self._matcher.search(self.ed_search.text(), limit=200,
+                                       include_karaoke=self.chk_karaoke.isChecked())
         self.table.setRowCount(0)
         self.table.setRowCount(len(results))
         for r, d in enumerate(results):
@@ -244,4 +250,5 @@ class LibraryPage(Page):
             self.lbl_results.setText("No encontré nada con eso.")
         else:
             extra = " (mostrando los primeros 200)" if len(results) >= 200 else ""
-            self.lbl_results.setText(f"{_n(len(results))} resultado(s){extra}.")
+            sin_k = "" if self.chk_karaoke.isChecked() else " · sin karaokes"
+            self.lbl_results.setText(f"{_n(len(results))} resultado(s){extra}{sin_k}.")

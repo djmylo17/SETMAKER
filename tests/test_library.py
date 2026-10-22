@@ -247,3 +247,22 @@ def test_safe_filename():
     assert safe_filename("CON") == "_CON"
     assert safe_filename('  a/b\\c:d*e?  .') == "a b c d e"
     assert safe_filename("") == "SETMAKER"
+
+
+def test_buscador_excluye_karaoke_por_defecto(data_dir):
+    from app.db.database import Database
+    from app.library.matcher import LibraryMatcher
+    from app.library.vdj_db import INSERT_SQL, build_row
+    db = Database(data_dir / "setmaker.db")
+    rows = [build_row(r"E:\M\Daddy Yankee - Gasolina.mp3", "scan", "Daddy Yankee", "Gasolina",
+                      genre="", comment="", bpm=96, key="", duration=190, bitrate=320, size=1, mtime=1,
+                      is_karaoke=False),
+            build_row(r"E:\Karaoke\Daddy Yankee - Gasolina (Karaoke).mp4", "scan", "Daddy Yankee",
+                      "Gasolina (Karaoke)", genre="Karaoke", comment="", bpm=0, key="", duration=190,
+                      bitrate=0, size=1, mtime=1, is_karaoke=True)]
+    with db.conn:
+        db.conn.executemany(INSERT_SQL, rows)
+    m = LibraryMatcher(db, ignore_karaoke=False)
+    assert len(m.search("gasolina")) == 1
+    assert len(m.search("gasolina", include_karaoke=True)) == 2
+    db.close()

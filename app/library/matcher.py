@@ -223,11 +223,11 @@ class LibraryMatcher:
             return OTHER_VERSION, [self.to_result(d) for d in self._sort(version)]
         return MISSING, []
 
-    def search(self, text: str, limit: int = 200) -> list[dict]:
+    def search(self, text: str, limit: int = 200, include_karaoke: bool = False) -> list[dict]:
         """Búsqueda simple para la pantalla Biblioteca (todas las palabras deben aparecer)."""
         toks = _clean(text or "").split()
         out = []
-        pool = list(self.by_path.values())  # incluye karaokes: es una vista de la biblioteca
+        pool = [d for d in self.by_path.values() if include_karaoke or not d.get("is_karaoke")]
         if not toks:
             pool.sort(key=lambda d: ((d.get("artist") or "").lower(), (d.get("title") or "").lower()))
             return [self.to_result(d) for d in pool[:limit]]

@@ -137,7 +137,7 @@ def test_search_links_encoding():
     links = dict(search_links("Ñengo Flow & Jowell", "Hoy Se Bebe"))
     yt = urlparse(links["YouTube"])
     assert yt.netloc == "www.youtube.com"
-    assert parse_qs(yt.query)["search_query"] == ["Ñengo Flow & Jowell Hoy Se Bebe"]
+    assert parse_qs(yt.query)["search_query"] == ["Ñengo Flow & Jowell Hoy Se Bebe -karaoke"]
     assert "&" not in yt.query.split("search_query=", 1)[1]
     sp = links["Spotify"]
     assert sp.startswith("https://open.spotify.com/search/")

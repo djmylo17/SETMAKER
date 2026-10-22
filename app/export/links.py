@@ -35,7 +35,7 @@ def search_links(artist: str, title: str, pool_template: str = "",
     """Lista de (etiqueta, url) para buscar el tema."""
     q = f"{artist} {title}".strip()
     links = [
-        ("YouTube", "https://www.youtube.com/results?search_query=" + quote_plus(q)),
+        ("YouTube", "https://www.youtube.com/results?search_query=" + quote_plus(q + " -karaoke")),
         ("Spotify", "https://open.spotify.com/search/" + quote(q, safe="")),
         ("Beatport", "https://www.beatport.com/search?q=" + quote_plus(q)),
     ]
