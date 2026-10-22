@@ -1,0 +1,53 @@
+name: Compilar SETMAKER (Windows portable)
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # necesario para publicar la Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Pruebas automáticas
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -q
+
+      - name: Empaquetar con PyInstaller
+        run: pyinstaller setmaker.spec --noconfirm
+
+      - name: Crear .zip portable
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/SETMAKER -DestinationPath SETMAKER-windows.zip
+
+      - name: Subir zip (descargable desde la pestaña Actions)
+        uses: actions/upload-artifact@v4
+        with:
+          name: SETMAKER-windows
+          path: SETMAKER-windows.zip
+          retention-days: 30
+
+      - name: Publicar Release (solo cuando se crea una etiqueta vX.Y.Z)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: SETMAKER-windows.zip
+          generate_release_notes: true

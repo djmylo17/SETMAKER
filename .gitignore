@@ -1,0 +1,14 @@
+# Datos del usuario: NUNCA al repositorio (claves, biblioteca, eventos)
+data/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# PyInstaller
+build/
+dist/
+*.zip
