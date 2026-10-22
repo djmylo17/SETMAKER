@@ -122,6 +122,36 @@ QCheckBox::indicator:checked {{ background: {C['accent']}; border-color: {C['acc
 QListWidget#PathList {{
     background: {C['bg']}; border: 1px solid {C['border']}; border-radius: 8px; padding: 4px;
 }}
+QListWidget#PathList::item {{ padding: 6px 6px; border-radius: 6px; }}
+QListWidget#PathList::item:selected {{ background: #1f3a31; color: {C['text']}; }}
+
+/* ---------- tablas ---------- */
+QTableWidget, QTableView, QListView {{
+    background: {C['sidebar']}; alternate-background-color: #141823; color: {C['text']};
+    border: 1px solid {C['border']}; border-radius: 10px; gridline-color: #1c2130;
+    selection-background-color: #1f3a31; selection-color: {C['text']};
+}}
+QTableWidget::item, QTableView::item {{ padding: 4px; }}
+QHeaderView {{ background: transparent; }}
+QHeaderView::section {{
+    background: {C['panel']}; color: {C['muted']}; border: none; border-bottom: 1px solid {C['border']};
+    padding: 6px 8px; font-weight: 600;
+}}
+QTableCornerButton::section {{ background: {C['panel']}; border: none; }}
+QTableWidget QSpinBox {{ border-radius: 4px; padding: 2px 6px; }}
+QProgressBar {{ background: {C['bg']}; border: 1px solid {C['border']}; border-radius: 6px; height: 12px; text-align: center; }}
+QProgressBar::chunk {{ background: {C['accent']}; border-radius: 6px; }}
+QPlainTextEdit, QTextEdit {{
+    background: {C['bg']}; border: 1px solid {C['border']}; border-radius: 8px; padding: 6px;
+}}
+QDateEdit {{ background: {C['bg']}; border: 1px solid {C['border']}; border-radius: 8px; padding: 6px 10px; }}
+QSlider::groove:horizontal {{ height: 6px; background: {C['panel_hi']}; border-radius: 3px; }}
+QSlider::sub-page:horizontal {{ background: {C['accent']}; border-radius: 3px; }}
+QSlider::handle:horizontal {{ background: {C['text']}; width: 16px; margin: -6px 0; border-radius: 8px; }}
+QMenu {{ background: {C['panel']}; border: 1px solid {C['border']}; padding: 4px; }}
+QMenu::item {{ padding: 7px 18px; border-radius: 6px; }}
+QMenu::item:selected {{ background: {C['panel_hi']}; color: {C['accent']}; }}
+QSplitter::handle {{ background: transparent; }}
 
 /* ---------- scroll ---------- */
 QScrollBar:vertical {{ background: transparent; width: 10px; margin: 2px; }}

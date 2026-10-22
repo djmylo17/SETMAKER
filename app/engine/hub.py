@@ -27,8 +27,9 @@ Progress = Callable[[str], None]
 class SourceHub:
     """Implementación real (internet). Errores de una fuente no detienen a las demás."""
 
-    def __init__(self, db: Database, lastfm_key: str = "", youtube_key: str = ""):
+    def __init__(self, db: Database, lastfm_key: str = "", youtube_key: str = "", spotify=None):
         self.db = db
+        self.spotify = spotify   # SpotifyClient conectado (para leer TUS playlists)
         self.http = CachedHTTP(db)
         self.deezer = Deezer(self.http)
         self.apple = AppleMusic(self.http)
@@ -115,12 +116,45 @@ class SourceHub:
                 tracks = self._safe("Deezer", self.deezer.playlist_tracks, pl["playlist_id"], 150, pl.get("name", ""))
             elif pl["platform"] == "youtube" and self.youtube:
                 tracks = self._safe("YouTube", self.youtube.playlist_tracks, extract_playlist_id(pl["playlist_id"]), 150)
+            elif pl["platform"] == "spotify" and self.spotify:
+                tracks = self._safe("Spotify", self._spotify_playlist, pl["playlist_id"])
             else:
                 tracks = []
             for t in tracks:
                 t.sources["curada"] = {"playlist": pl.get("name") or pl["url"]}
                 t.seed_genres += pl["genres"]
             out += tracks
+        return out
+
+    def _spotify_playlist(self, playlist_id: str, limit: int = 200) -> list[Track]:
+        """Lee una playlist PROPIA de Spotify (desde feb. 2026 la API no entrega playlists ajenas)."""
+        import httpx
+        from ..core.normalize import track_key
+        token = self.spotify._access_token()
+        url = f"https://api.spotify.com/v1/playlists/{playlist_id}/items"
+        params = {"limit": 50}
+        out: list[Track] = []
+        while url and len(out) < limit:
+            r = httpx.get(url, params=params, headers={"Authorization": f"Bearer {token}"}, timeout=20)
+            if r.status_code in (401, 403):
+                raise SourceError("Spotify no permite leer esa playlist (debe ser tuya o colaborativa contigo).")
+            if r.status_code >= 400:
+                raise SourceError(f"Spotify respondió {r.status_code}")
+            data = r.json()
+            for e in data.get("items", []):
+                tr = e.get("item") or e.get("track") or {}
+                if not tr or tr.get("type", "track") != "track":
+                    continue
+                artist = ", ".join(a.get("name", "") for a in tr.get("artists", [])[:3])
+                title = tr.get("name", "")
+                rd = (tr.get("album") or {}).get("release_date", "") or ""
+                t = Track(key=track_key(artist, title), title=title, artist=artist, release_date=rd,
+                          year=int(rd[:4]) if rd[:4].isdigit() else 0,
+                          isrc=(tr.get("external_ids") or {}).get("isrc", ""),
+                          explicit=tr.get("explicit"), link=(tr.get("external_urls") or {}).get("spotify", ""))
+                t.sources["curada"] = {"pos": len(out) + 1}
+                out.append(t)
+            url, params = data.get("next"), None
         return out
 
     # ---------------- enriquecimiento

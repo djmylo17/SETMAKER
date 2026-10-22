@@ -101,7 +101,7 @@ def check_spotify_client_id(client_id: str) -> CheckResult:
         return CheckResult(False, "Falta el Client ID.")
     if not re.fullmatch(r"[0-9a-fA-F]{32}", client_id.strip()):
         return CheckResult(False, "El Client ID debe tener 32 caracteres (letras a-f y números).")
-    return CheckResult(True, "Formato correcto. La conexión con tu cuenta se activa en la Fase 5.")
+    return CheckResult(True, "Formato correcto. Conecta tu cuenta en Ajustes → Salidas → «Conectar Spotify».")
 
 
 # ---------------------------------------------------------------- sin clave

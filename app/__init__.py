@@ -1,4 +1,4 @@
 """SETMAKER — preparación de sets para DJ (Level Up Producciones)."""
 
 APP_NAME = "SETMAKER"
-__version__ = "0.1.0"
+__version__ = "0.2.0"

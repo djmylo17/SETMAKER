@@ -88,6 +88,8 @@ class MissingPage(Page):
         self.empty = muted(EMPTY_TEXT)
         self.table_card.body.addWidget(self.empty)
         self.table = QTableWidget(0, 7)
+        self.table.verticalHeader().setDefaultSectionSize(42)
+        self.table.setWordWrap(False)
         self.table.setHorizontalHeaderLabels(["#", "Bloque", "Artista", "Título", "Género", "Estado", "Buscar en"])
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -167,7 +169,8 @@ class MissingPage(Page):
                     cell.setTextAlignment(Qt.AlignCenter)
                 self.table.setItem(r, c, cell)
             self.table.setCellWidget(r, 6, self._link_buttons(it, pool_tpl, pool_name))
-        self.table.resizeRowsToContents()
+        for r in range(self.table.rowCount()):
+            self.table.setRowHeight(r, 42)
 
     def _link_buttons(self, it: SetItem, pool_tpl: str, pool_name: str) -> QWidget:
         w = QWidget()

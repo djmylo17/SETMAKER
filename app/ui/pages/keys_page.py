@@ -199,6 +199,100 @@ class KeyCard(Card):
             self._fill_models()
 
 
+def parse_playlist_url(url: str) -> tuple[str, str] | None:
+    """Detecta plataforma e ID de una playlist pegada. None si no se reconoce."""
+    import re
+    u = url.strip()
+    m = re.search(r"deezer\.com/(?:[a-z]{2}/)?playlist/(\d+)", u)
+    if m:
+        return "deezer", m.group(1)
+    m = re.search(r"[?&]list=([A-Za-z0-9_-]+)", u)
+    if m and ("youtube" in u or "youtu.be" in u):
+        return "youtube", m.group(1)
+    m = re.search(r"open\.spotify\.com/(?:intl-[a-z]+/)?playlist/([A-Za-z0-9]+)", u)
+    if m:
+        return "spotify", m.group(1)
+    return None
+
+
+class CuratedCard(Card):
+    """Playlists curadas que agregas como fuente para ciertos géneros o tipos de evento."""
+
+    def __init__(self, ctx: AppContext, status_cb):
+        super().__init__("Playlists curadas (tus fuentes)")
+        from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QTableWidget, QTableWidgetItem
+        from ...core import store
+        from ...core.models import EVENT_TYPES
+        self.ctx, self.status_msg = ctx, status_cb
+        self._store, self._types = store, EVENT_TYPES
+        self._QTI = QTableWidgetItem
+        self.body.addWidget(muted(
+            "Pega el link de una playlist de Deezer o YouTube que te guste (de un curador, de un pool, tuya). "
+            "Sus temas entran como candidatos, pero igual pasan por la clasificación y los filtros: nunca se cuela "
+            "algo que no calce. Spotify: solo funcionan playlists TUYAS (Spotify bloqueó leer playlists ajenas desde "
+            "2026; copia la playlist a una tuya en la app de Spotify y pega ese link)."))
+        row = QHBoxLayout()
+        self.url = QLineEdit()
+        self.url.setPlaceholderText("https://www.deezer.com/playlist/…  o  https://www.youtube.com/playlist?list=…")
+        self.name = QLineEdit()
+        self.name.setPlaceholderText("Nombre (ej: Perreo pool)")
+        self.name.setMaximumWidth(200)
+        self.etype = QComboBox()
+        self.etype.addItem("Todos los eventos", "")
+        for k, v in EVENT_TYPES.items():
+            self.etype.addItem(v, k)
+        add = styled_button(QPushButton("Agregar"), "primary")
+        add.clicked.connect(self.add_playlist)
+        row.addWidget(self.url, 1)
+        row.addWidget(self.name)
+        row.addWidget(self.etype)
+        row.addWidget(add)
+        self.body.addLayout(row)
+        self.table = QTableWidget(0, 4)
+        self.table.setHorizontalHeaderLabels(["Plataforma", "Nombre", "Para", "Link"])
+        self.table.verticalHeader().setVisible(False)
+        self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table.setMaximumHeight(170)
+        self.body.addWidget(self.table)
+        rm = QPushButton("Quitar seleccionada")
+        rm.clicked.connect(self.remove)
+        self.body.addWidget(rm, 0, Qt.AlignLeft)
+        self.refresh()
+
+    def refresh(self):
+        rows = self._store.list_curated(self.ctx.db)
+        self.table.setRowCount(len(rows))
+        for r, d in enumerate(rows):
+            for c, v in enumerate([d["platform"].capitalize(), d.get("name") or "",
+                                   ", ".join(self._types.get(t, t) for t in d["event_types"]) or "Todos", d["url"]]):
+                it = self._QTI(v)
+                it.setData(Qt.UserRole, d["id"])
+                self.table.setItem(r, c, it)
+
+    def add_playlist(self):
+        parsed = parse_playlist_url(self.url.text())
+        if not parsed:
+            QMessageBox.warning(self, "Playlist", "No reconocí el link. Debe ser una playlist de Deezer, YouTube o "
+                                                  "Spotify (copia el link desde «Compartir»).")
+            return
+        platform, pid = parsed
+        et = [self.etype.currentData()] if self.etype.currentData() else []
+        self._store.add_curated(self.ctx.db, platform, self.url.text().strip(), pid,
+                                self.name.text().strip() or f"Playlist {platform}", [], et)
+        self.url.clear()
+        self.name.clear()
+        self.refresh()
+        self.status_msg("Playlist agregada como fuente")
+
+    def remove(self):
+        r = self.table.currentRow()
+        if r >= 0:
+            self._store.delete_curated(self.ctx.db, self.table.item(r, 0).data(Qt.UserRole))
+            self.refresh()
+
+
 class KeysPage(Page):
     def __init__(self, ctx: AppContext, status_cb: Callable[[str], None], changed_cb: Callable[[], None]):
         super().__init__("Fuentes y claves",
@@ -229,6 +323,9 @@ class KeysPage(Page):
             row.addWidget(res, 1)
             free.body.addLayout(row)
         self.add(free)
+
+        # ---------- playlists curadas ----------
+        self.add(CuratedCard(ctx, status_cb))
 
         # ---------- contraseña maestra ----------
         pw = Card("Contraseña maestra")

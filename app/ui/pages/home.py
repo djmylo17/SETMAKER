@@ -2,10 +2,14 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
+from PySide6.QtWidgets import (QAbstractItemView, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel,
+                               QMessageBox, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout,
+                               QWidget)
 
 from ... import __version__
 from ...context import AppContext
+from ...core import store
+from ...core.models import EVENT_TYPES
 from ...security.vault import SERVICES
 from ..widgets import Card, Page, muted, styled_button
 
@@ -34,6 +38,16 @@ class StatCard(QFrame):
 
 class HomePage(Page):
     go_to = Signal(str)  # nombre de página destino
+    open_event = Signal(int)
+
+    def _open_row(self, row: int):
+        if 0 <= row < len(self._event_ids):
+            self.open_event.emit(self._event_ids[row])
+
+    def _delete(self, event_id: int, name: str):
+        if QMessageBox.question(self, "Eliminar evento", f"¿Eliminar «{name}» y su set?") == QMessageBox.Yes:
+            store.delete_event(self.ctx.db, event_id)
+            self.on_show()
 
     def __init__(self, ctx: AppContext):
         super().__init__("Inicio")
@@ -72,9 +86,19 @@ class HomePage(Page):
 
         # ---------- mis eventos ----------
         self.events_card = Card("Mis eventos")
-        self.events_empty = muted("Todavía no tienes sets preparados. "
-                                  "Crea el primero con «Nuevo set» (disponible en la Fase 2).")
+        self.events_empty = muted("Todavía no tienes sets preparados. Crea el primero con «Nuevo set».")
         self.events_card.body.addWidget(self.events_empty)
+        self.events = QTableWidget(0, 5)
+        self.events.setHorizontalHeaderLabels(["Fecha", "Evento", "Tipo", "Temas", ""])
+        self.events.verticalHeader().setVisible(False)
+        self.events.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.events.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.events.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.events.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        self.events.setStyleSheet("QTableWidget{background:transparent;border:none;}"
+                                  "QHeaderView::section{background:transparent;color:#8a93a6;border:none;padding:4px;}")
+        self.events.doubleClicked.connect(lambda idx: self._open_row(idx.row()))
+        self.events_card.body.addWidget(self.events)
         self.add(self.events_card)
 
         # ---------- próximos pasos ----------
@@ -109,11 +133,33 @@ class HomePage(Page):
         else:
             self.st_lib.set("Sin ruta", "Configúrala en Ajustes", C["warn"])
 
-        count = self.ctx.db.scalar("SELECT COUNT(*) FROM events") or 0
+        events = store.list_events(self.ctx.db)
+        count = len(events)
         self.st_events.set(str(count), "en tu historial")
         self.events_empty.setVisible(count == 0)
+        self.events.setVisible(count > 0)
+        self._event_ids = [e.id for e in events]
+        self.events.setRowCount(count)
+        for r, e in enumerate(events):
+            date = "-".join(reversed(e.event_date.split("-"))) if e.event_date else "—"
+            vals = [date, e.name, EVENT_TYPES.get(e.event_type, e.event_type),
+                    str(e.track_count) if e.set_id else "sin generar"]
+            for c, v in enumerate(vals):
+                self.events.setItem(r, c, QTableWidgetItem(v))
+            box = QWidget()
+            bl = QHBoxLayout(box)
+            bl.setContentsMargins(4, 2, 4, 2)
+            b_open = styled_button(QPushButton("Abrir"), "primary")
+            b_open.clicked.connect(lambda _=False, i=e.id: self.open_event.emit(i))
+            b_del = QPushButton("Eliminar")
+            b_del.clicked.connect(lambda _=False, i=e.id, n=e.name: self._delete(i, n))
+            bl.addWidget(b_open)
+            bl.addWidget(b_del)
+            self.events.setCellWidget(r, 4, box)
+            self.events.setRowHeight(r, 44)
+        self.events.setMinimumHeight(min(420, 40 + 46 * count))
 
-        self.st_ver.set(__version__, "Fase 1 · base")
+        self.st_ver.set(__version__, "Lista para usar")
 
         todo = []
         if n < total:

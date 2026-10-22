@@ -127,15 +127,10 @@ class SettingsPage(Page):
         bk.body.addLayout(row)
         self.add(bk)
 
-        # ---------- actualizaciones ----------
-        up = Card("Actualizaciones")
-        up.body.addWidget(QLabel(f"Versión instalada: <b>{__version__}</b>"))
-        up.body.addWidget(muted("El botón «Buscar actualizaciones» se activa en la Fase 6. Descargará la "
-                                "versión nueva desde GitHub y la instalará sin tocar tu carpeta data."))
-        b_up = QPushButton("Buscar actualizaciones")
-        b_up.setEnabled(False)
-        up.body.addWidget(b_up)
-        self.add(up)
+        # ---------- salidas y actualizaciones ----------
+        from .outputs_cards import OutputsCard, UpdatesCard
+        self.add(OutputsCard(ctx, status_cb))
+        self.add(UpdatesCard(ctx, status_cb))
         self.finish()
 
     # ---------- helpers ----------

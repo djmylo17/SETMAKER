@@ -31,7 +31,9 @@ Hecha para **Level Up Producciones** (Gran Concepción, Chile).
 
 ## Actualizar a una versión nueva
 
-Por ahora es manual. El botón automático llega en la Fase 6.
+**Automático:** Ajustes → Actualizaciones → «Buscar actualizaciones». Descarga e instala sin tocar `data\`.
+
+**Manual (si algo falla):**
 
 1. Crea un respaldo: **Ajustes → Crear respaldo ahora**.
 2. Cierra SETMAKER.
@@ -82,11 +84,11 @@ docs/                documentación (formato de intercambio con CrateDJ, etc.)
 ### Fases
 
 1. **Base** ✅ — app portable, SQLite, ajustes, claves, empaquetado
-2. Perfiles de evento, plantillas y taxonomía de géneros
-3. Fuentes y motor de generación (con pruebas obligatorias anti-errores)
-4. Biblioteca VirtualDJ y coincidencias
-5. Salidas: Spotify, links de búsqueda, Excel/CSV/TXT, JSON para CrateDJ
-6. Aprendizaje, actualizador automático y pulido
+2. **Perfiles de evento, plantillas y taxonomía de géneros** ✅
+3. **Fuentes y motor de generación** ✅ — pruebas obligatorias: 0 rock/baladas en carrete juvenil, 0 explícitos en cumpleaños infantil
+4. **Biblioteca VirtualDJ y coincidencias** ✅ — `.vdjfolder` (verificar con un archivo real)
+5. **Salidas** ✅ — Spotify, links de búsqueda y pool, Excel/CSV/TXT, JSON para CrateDJ (`docs/formato-intercambio.md`)
+6. **Aprendizaje y actualizador** ✅ — 👍/👎 y vetos por tipo de evento, botón «Buscar actualizaciones»
 
 ### Notas sobre las APIs (verificado en octubre 2026)
 
