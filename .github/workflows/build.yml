@@ -39,7 +39,10 @@ jobs:
           $code = $LASTEXITCODE
           Get-Content pytest.txt -Tail 60
           if ($code -ne 0) {
-            Get-Content pytest.txt | Select-String -Pattern "^(FAILED|ERROR)|Error:|assert" | Select-Object -First 9 | ForEach-Object { Write-Output "::error::$($_.Line)" }
+            $lines = Get-Content pytest.txt -Encoding utf8
+            $hits = $lines | Where-Object { $_ -match "FAILED|ERROR|Error|assert|Exception" } | Select-Object -First 8
+            if (-not $hits) { $hits = $lines | Select-Object -Last 8 }
+            foreach ($l in $hits) { $m = ($l -replace "::", ": ").Substring(0, [Math]::Min(400, $l.Length)); Write-Output "::error::$m" }
           }
           exit $code
 
