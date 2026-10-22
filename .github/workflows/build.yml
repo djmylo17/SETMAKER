@@ -32,7 +32,16 @@ jobs:
       - name: Pruebas automáticas
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python -m pytest -q
+          PYTHONIOENCODING: utf-8
+        shell: pwsh
+        run: |
+          python -m pytest -q --tb=short -rf -p no:cacheprovider *> pytest.txt
+          $code = $LASTEXITCODE
+          Get-Content pytest.txt -Tail 60
+          if ($code -ne 0) {
+            Get-Content pytest.txt | Select-String -Pattern "^(FAILED|ERROR)|Error:|assert" | Select-Object -First 9 | ForEach-Object { Write-Output "::error::$($_.Line)" }
+          }
+          exit $code
 
       - name: Empaquetar con PyInstaller
         run: pyinstaller setmaker.spec --noconfirm
