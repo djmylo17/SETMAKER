@@ -44,9 +44,9 @@ Por ahora es manual. El botón automático llega en la Fase 6.
 
 Claude hace casi todo esto, pero así funciona:
 
-1. Claude sube el código a la rama `main`. GitHub ejecuta las pruebas y arma el zip automáticamente (pestaña **Actions**).
-2. Para publicar una versión oficial se crea una **etiqueta** `vX.Y.Z` (por ejemplo `v0.2.0`). GitHub compila en Windows y crea la **Release** con `SETMAKER-windows.zip` adjunto.
-3. Antes de publicar, el número de versión se cambia en `app/__init__.py` (`__version__`).
+1. Claude sube el código a la rama `main`. GitHub ejecuta las pruebas y arma el zip en Windows automáticamente (pestaña **Actions**, unos 5–8 minutos).
+2. Si el número de versión de `app/__init__.py` (`__version__`) es nuevo, GitHub crea solo la **Release** `vX.Y.Z` con `SETMAKER-windows.zip` adjunto.
+3. Si la versión no cambió, el zip igual queda descargable desde **Actions** (por 30 días), pero no se crea una Release nueva.
 
 ---
 
